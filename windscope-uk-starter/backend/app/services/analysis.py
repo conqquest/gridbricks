@@ -47,18 +47,28 @@ def get_analysis(start_date: date, end_date: date, cutoff_hour: int):
         if published <= cutoff_utc:
             forecasts_by_start[target].append({"publishTime": row["publishTime"], "published_dt": published, "forecast": row["forecast"]})
 
+    # WINDFOR forecasts are hourly average-MW values covering [T, T+1h).
+    # FUELHH actuals are half-hourly average-MW values for [T, T+30min) and
+    # [T+30min, T+1h). Both datasets express the same quantity (average MW over
+    # their respective window), so the hourly forecast is compared against each
+    # of the two HH actuals that fall within the forecast hour. No averaging of
+    # actuals is applied: energy settlements are calculated per HH period, and
+    # averaging would discard half the actual observations.
     matched = []
     for target_dt, versions in forecasts_by_start.items():
-        if target_dt not in actual_by_start:
-            continue
         selected = max(versions, key=lambda x: x["published_dt"])
-        matched.append({
-            "startTime": target_dt.isoformat(),
-            "publishTime": selected["publishTime"],
-            "forecast": selected["forecast"],
-            "actual": actual_by_start[target_dt],
-            "error": round(selected["forecast"] - actual_by_start[target_dt], 2),
-        })
+        half_hour_offsets = [timedelta(0), timedelta(minutes=30)]
+        for offset in half_hour_offsets:
+            hh_dt = target_dt + offset
+            if hh_dt not in actual_by_start:
+                continue
+            matched.append({
+                "startTime": hh_dt.isoformat(),
+                "publishTime": selected["publishTime"],
+                "forecast": selected["forecast"],
+                "actual": actual_by_start[hh_dt],
+                "error": round(selected["forecast"] - actual_by_start[hh_dt], 2),
+            })
     matched.sort(key=lambda x: x["startTime"])
 
     by_day = defaultdict(list)
@@ -71,6 +81,12 @@ def get_analysis(start_date: date, end_date: date, cutoff_hour: int):
             "cutoffHourLocal": cutoff_hour,
             "timezone": "Europe/London",
             "cutoffRule": "Latest forecast published by the configured cutoff on the day before delivery",
+            "matchingNote": (
+                "WINDFOR forecasts are hourly average-MW values. FUELHH actuals are "
+                "half-hourly average-MW values. Each hourly forecast is compared "
+                "against both the :00 and :30 actuals within that hour (up to 48 "
+                "matched periods per day). No averaging of actuals is applied."
+            ),
             "warning": "The cutoff hour is an explicit prototype assumption; confirm the client's intended trading decision cutoff. Historical forecast endpoint coverage must be validated before relying on results.",
         },
         "summary": _metric_rows(matched),
