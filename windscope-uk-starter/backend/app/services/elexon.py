@@ -2,6 +2,17 @@
 
 The API is public; no API key is required for these endpoints. Check current
 Elexon documentation before relying on this prototype for operational use.
+
+Verified endpoints (live, 2026-10-25):
+  GET /datasets/FUELHH    params: settlementDateFrom, settlementDateTo, format
+  GET /datasets/WINDFOR   params: publishDateTimeFrom, publishDateTimeTo, format
+Both return {"data": [{...}, ...]}.
+FUELHH fields: fuelType, startTime, generation  (half-hourly, ":00" and ":30")
+WINDFOR fields: publishTime, startTime, generation  (hourly, on the hour only)
+
+Note: FUELHH actuals are half-hourly; WINDFOR forecasts are hourly. Downstream
+matching by exact startTime will only pair the top-of-hour actuals with
+forecasts.  This is not fixed here; see analysis.py for the matching logic.
 """
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -59,42 +70,38 @@ def _parse_datetime(value):
 
 
 def fetch_forecast_publications(start_date: date, end_date: date):
-    """Fetch historical WINDFOR forecast snapshots by publication timestamp.
+    """Fetch historical WINDFOR forecast snapshots via the datasets/WINDFOR endpoint.
 
-    The history endpoint is queried at the known daily forecast publication
-    windows. Returned records are retained with their publishTime so analysis
-    can choose the latest version before the configured cutoff.
+    Queries all publications whose publishTime falls in the window
+    [start_date - 1 day, end_date + 1 day) UTC, retrieving every forecast
+    snapshot in a single HTTP request. This replaces the previous approach that
+    polled forecast/generation/wind/history with 8 hardcoded publication times
+    per day, which was slow (N*8 requests), fragile, and silently missed any
+    publication outside those fixed minutes.
+
+    Verified against the live API: datasets/WINDFOR accepts
+    publishDateTimeFrom and publishDateTimeTo as ISO-8601 UTC strings and
+    returns {"data": [{"publishTime": ..., "startTime": ..., "generation": ...}]}.
     """
-    url = f"{BASE_URL}/forecast/generation/wind/history"
-    publication_times = [time(3, 30), time(5, 30), time(8, 30), time(10, 30),
-                         time(12, 30), time(16, 30), time(19, 30), time(23, 30)]
-    # Query the day before the first target through the final target day.
-    day = start_date - timedelta(days=1)
-    last_day = end_date
+    url = f"{BASE_URL}/datasets/WINDFOR"
+    # Fetch publications from the day before the first delivery date (forecasts
+    # published on D-1 cover the D start times) through midnight at the end of
+    # the final delivery date.
+    from_dt = datetime.combine(start_date - timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
+    to_dt = datetime.combine(end_date + timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
+    params = {
+        "publishDateTimeFrom": from_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "publishDateTimeTo": to_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "format": "json",
+    }
+    response = requests.get(url, params=params, timeout=TIMEOUT)
+    response.raise_for_status()
     snapshots = []
-    while day <= last_day:
-        for publication_time in publication_times:
-            local_dt = datetime.combine(day, publication_time, tzinfo=UK)
-            publish_time = local_dt.astimezone(timezone.utc)
-            try:
-                response = requests.get(url, params={"publishTime": publish_time.isoformat().replace("+00:00", "Z"), "format": "json"}, timeout=TIMEOUT)
-                if response.status_code == 404:
-                    continue
-                response.raise_for_status()
-                for row in _records(response.json()):
-                    start = row.get("startTime")
-                    generation = row.get("generation")
-                    published = row.get("publishTime") or row.get("publishDateTime")
-                    if start is None or generation is None or published is None:
-                        continue
-                    snapshots.append({"startTime": start, "publishTime": published, "forecast": float(generation)})
-            except requests.RequestException:
-                # Continue to other snapshots; API may not have a publication at
-                # every expected minute. Total failure is handled by analysis.
-                continue
-        day += timedelta(days=1)
-    # Deduplicate exact target/publication pairs.
-    unique = {}
-    for row in snapshots:
-        unique[(row["startTime"], row["publishTime"])] = row
-    return list(unique.values())
+    for row in _records(response.json()):
+        start = row.get("startTime")
+        generation = row.get("generation")
+        published = row.get("publishTime")
+        if start is None or generation is None or published is None:
+            continue
+        snapshots.append({"startTime": start, "publishTime": published, "forecast": float(generation)})
+    return snapshots
