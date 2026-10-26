@@ -5,25 +5,32 @@ import {
 } from 'recharts';
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarDays,
-  CheckCircle2, Cloud, Database, Download, FileText, Info, RefreshCw, Wind, Zap
+  CheckCircle2, Cloud, Database, Download, FileText, Info, RefreshCw, Wind, Zap,
+  ExternalLink, ChevronRight, Layers, Clock, TrendingUp, Sliders
 } from 'lucide-react';
+
+import WindScopeHeader from './components/WindScopeHeader';
+import LandscapeFooter from './components/LandscapeFooter';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const fmt = (n, digits = 0) => (n == null ? '—' : Number(n).toLocaleString('en-GB', { maximumFractionDigits: digits, minimumFractionDigits: digits }));
 
 function MetricCard({ label, value, unit, note, icon: Icon, tag, tagType }) {
   return (
-    <article className="metric-card">
-      <div className="metric-top">
-        <span>{label}</span>
-        <span className="metric-icon"><Icon size={17} /></span>
+    <article className="editorial-kpi-card">
+      <div className="kpi-top">
+        <span className="kpi-label">{label}</span>
+        <span className={`kpi-icon-wrap ${tagType || 'neutral'}`}>
+          <Icon size={17} />
+        </span>
       </div>
-      <div className="metric-value">
-        {value}<small>{unit}</small>
+      <div className="kpi-value-row">
+        <span className="kpi-number">{value}</span>
+        {unit && <span className="kpi-unit">{unit}</span>}
       </div>
-      <div className="metric-footer">
-        {tag && <span className={`metric-tag ${tagType || ''}`}>{tag}</span>}
-        <span className="metric-note">{note}</span>
+      <div className="kpi-footer">
+        {tag && <span className={`kpi-tag ${tagType || 'neutral'}`}>{tag}</span>}
+        <span className="kpi-note">{note}</span>
       </div>
     </article>
   );
@@ -39,7 +46,6 @@ export default function App() {
   const [cutoff, setCutoff] = useState('10');
   const [activeTab, setActiveTab] = useState('daily'); // 'daily' | 'observations'
   const [sourceMode, setSourceMode] = useState('july-2026'); // 'live' | 'july-2026' | 'january-2026'
-  const [showMethodology, setShowMethodology] = useState(true);
 
   async function loadData(targetSource = sourceMode, customStart = start, customEnd = end, customCutoff = cutoff) {
     setLoading(true);
@@ -67,7 +73,7 @@ export default function App() {
         e.response?.data?.detail ||
         (targetSource === 'live'
           ? 'Could not retrieve live Elexon data. Check that the backend server is running on port 8000 and that Elexon BMRS API is reachable.'
-          : 'Could not load saved analysis artifact. Ensure the backend server is running.')
+          : 'Could not load saved analysis artifact. Ensure the backend server is running on port 8000.')
       );
     } finally {
       setLoading(false);
@@ -134,525 +140,626 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
   const summary = data?.summary || {};
   const status = data?.dataStatus || {};
   const dataSource = data?.dataSource || (sourceMode === 'live' ? 'Live Elexon BMRS API' : 'Saved Analysis Artifact');
   const isLive = dataSource.includes('Live');
 
   return (
-    <div className="app-shell">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark"><Wind size={24} /></div>
-          <div>
-            <b>WindScope UK</b>
-            <span>GRID ENERGY INTELLIGENCE</span>
-          </div>
-        </div>
-        <div className="nav-label">WORKSPACE</div>
-        <div className="nav-item active"><Activity size={17} /> Accuracy Overview</div>
-        <div className="nav-item" onClick={() => setShowMethodology(!showMethodology)} style={{ cursor: 'pointer' }}>
-          <FileText size={17} /> Methodology & Notes
+    <div className="editorial-app-root">
+      {/* Editorial Header */}
+      <WindScopeHeader
+        activeSection="hero"
+        onNavigate={scrollToSection}
+        onRefresh={() => loadData(sourceMode, start, end, cutoff)}
+        loading={loading}
+        dataSource={dataSource}
+      />
+
+      {/* Hero Section */}
+      <section className="editorial-hero" id="hero">
+        {/* Sky illustrations: drifting clouds & gentle breeze lines */}
+        <div className="hero-sky-elements" aria-hidden="true">
+          <svg className="hero-wind-streamlines" viewBox="0 0 1200 320" preserveAspectRatio="none">
+            <path d="M-50 90 Q 200 65, 450 85 T 950 75 T 1300 95" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeDasharray="8 12" fill="none" />
+            <path d="M-20 160 Q 300 135, 600 155 T 1150 145" stroke="rgba(255,255,255,0.4)" strokeWidth="1.8" strokeDasharray="14 18" fill="none" />
+            <path d="M100 230 Q 400 205, 800 225 T 1280 215" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" strokeDasharray="6 14" fill="none" />
+          </svg>
+
+          {/* Stylized cream clouds floating across the hero sky */}
+          <div className="hero-cloud-shape hero-cloud-left" />
+          <div className="hero-cloud-shape hero-cloud-right" />
         </div>
 
-        <div className="sidebar-dataset-box">
-          <div className="sidebar-box-title"><Database size={13} /> Active Dataset</div>
-          <div className="sidebar-dataset-badge">
-            <span className={isLive ? 'status-dot live' : 'status-dot saved'} />
-            <b>{dataSource}</b>
+        <div className="hero-content">
+          <div className="hero-badge">
+            <span className="badge-bullet" />
+            NATIONAL GRID ESO &bull; ELEXON BMRS BALANCING MECHANISM
           </div>
-          <div className="sidebar-dataset-stat">Delivery: {data?.period?.startDate || start} to {data?.period?.endDate || end}</div>
-          <div className="sidebar-dataset-stat">Periods: {fmt(summary.matchedPeriods)} matched</div>
-        </div>
 
-        <div className="sidebar-bottom">
-          <div className="sidebar-source-tag">
-            <span className="green-dot" /> Elexon Insights BMRS API
-          </div>
-          <span>BMRS Datasets: FUELHH & WINDFOR<br />Prototype MVP v0.1.0</span>
-        </div>
-      </aside>
+          <h1 className="hero-title">
+            Understand Wind <br className="hero-br" />
+            Forecast Accuracy.
+          </h1>
 
-      {/* Main Content */}
-      <main className="main-content">
-        {/* Topbar */}
-        <header className="topbar">
-          <div>
-            <div className="eyebrow">NATIONAL GRID ESO / GB ENERGY MARKET</div>
-            <h1>UK Wind Forecast Accuracy Analysis</h1>
-            <p>Auditable forecast-versus-outturn accuracy analysis for day-ahead procurement decisions.</p>
-          </div>
-          <div className="topbar-actions">
+          <p className="hero-subtitle">
+            WindScope UK independently compares Day-Ahead National Grid wind forecasts with outturn generation, providing verifiable auditability across Great Britain&rsquo;s half-hour settlement periods.
+          </p>
+
+          <div className="hero-actions">
             <button
-              className="refresh-btn"
-              onClick={() => loadData(sourceMode, start, end, cutoff)}
-              disabled={loading}
-              title="Re-run analysis for current inputs"
+              type="button"
+              className="editorial-primary-btn"
+              onClick={() => scrollToSection('analysis')}
             >
-              <RefreshCw size={16} className={loading ? 'spin' : ''} />
-              {loading ? 'Executing query…' : 'Refresh analysis'}
+              Explore Analysis Dashboard
+              <ChevronRight size={17} />
+            </button>
+
+            <button
+              type="button"
+              className="editorial-ghost-btn"
+              onClick={() => scrollToSection('methodology')}
+            >
+              <FileText size={16} />
+              Read Methodology
             </button>
           </div>
-        </header>
 
-        {/* Filters and Preset Selectors */}
-        <section className="panel filters">
-          <div className="filter-heading">
-            <div>
-              <span className="section-kicker">ANALYSIS CONFIGURATION</span>
-              <h2>Data Source & Query Window</h2>
+          {/* Quick Stats Pill Strip */}
+          <div className="hero-stat-strip">
+            <div className="hero-stat-pill">
+              <span className="stat-pill-label">Settlement Cadence</span>
+              <span className="stat-pill-value">48 Half-Hours / Day</span>
             </div>
-            <div className="preset-button-group">
-              <span className="preset-label">Preset Datasets:</span>
+            <div className="hero-stat-pill">
+              <span className="stat-pill-label">Decision Boundary</span>
+              <span className="stat-pill-value">10:00 Europe/London (D-1)</span>
+            </div>
+            <div className="hero-stat-pill">
+              <span className="stat-pill-label">Primary Sources</span>
+              <span className="stat-pill-value">Elexon FUELHH &amp; WINDFOR</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Analysis Section */}
+      <main className="editorial-main" id="analysis">
+        <div className="editorial-container">
+
+          {/* Section Kicker */}
+          <div className="section-intro">
+            <div>
+              <span className="editorial-kicker">BENCHMARK INTELLIGENCE</span>
+              <h2 className="section-headline">Forecast-versus-Outturn Accuracy</h2>
+              <p className="section-subtext">
+                Audit forecast accuracy across GB settlement periods. Switch between verified monthly baselines or execute an on-demand live query directly against Elexon BMRS.
+              </p>
+            </div>
+
+            <div className="intro-actions">
               <button
                 type="button"
-                className={`preset-btn ${sourceMode === 'july-2026' ? 'active' : ''}`}
-                onClick={() => handleSelectPreset('july-2026')}
+                className="editorial-subtle-btn"
+                onClick={() => loadData(sourceMode, start, end, cutoff)}
                 disabled={loading}
               >
-                📊 July 2026 (BST Summer)
-              </button>
-              <button
-                type="button"
-                className={`preset-btn ${sourceMode === 'january-2026' ? 'active' : ''}`}
-                onClick={() => handleSelectPreset('january-2026')}
-                disabled={loading}
-              >
-                📊 January 2026 (GMT Winter)
-              </button>
-              <button
-                type="button"
-                className={`preset-btn ${sourceMode === 'live' ? 'active' : ''}`}
-                onClick={() => setSourceMode('live')}
-                disabled={loading}
-              >
-                ⚡ Live Elexon API Query
+                <RefreshCw size={14} className={loading ? 'spin' : ''} />
+                {loading ? 'Executing…' : 'Refresh Data'}
               </button>
             </div>
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              loadData('live', start, end, cutoff);
-            }}
-            className="filter-controls"
-          >
-            <label>
-              Delivery Date From
-              <input
-                type="date"
-                value={start}
-                max={end}
-                onChange={(e) => setStart(e.target.value)}
-                disabled={loading}
-              />
-            </label>
-            <label>
-              Delivery Date To
-              <input
-                type="date"
-                value={end}
-                min={start}
-                onChange={(e) => setEnd(e.target.value)}
-                disabled={loading}
-              />
-            </label>
-            <label>
-              Trading Cutoff (Europe/London on D-1)
-              <select
-                value={cutoff}
-                onChange={(e) => setCutoff(e.target.value)}
-                disabled={loading}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, '0')}:00 local ({cutoff === String(i) ? 'Selected' : ''})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="submit"
-              className="primary-btn"
-              disabled={loading}
-            >
-              <RefreshCw size={15} className={loading ? 'spin' : ''} />
-              {loading ? 'Running live query…' : 'Run Live Elexon Analysis'}
-            </button>
-          </form>
-
-          <div className="assumption-banner">
-            <AlertTriangle size={15} />
-            <span>
-              <b>Cutoff Rule:</b> The decision cutoff is set to <b>{cutoff}:00 Europe/London</b> on the day before delivery (D-1).
-              Only forecasts published at or before this local cutoff are eligible. In BST (summer), 10:00 local corresponds to 09:00 UTC.
-            </span>
-          </div>
-        </section>
-
-        {/* Loading Indicator */}
-        {loading && (
-          <div className="loading-banner">
-            <RefreshCw size={20} className="spin" />
-            <div>
-              <b>Analysis in progress…</b>
-              <p>{loadingMsg}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error Banner */}
-        {error && (
-          <div className="error-banner">
-            <AlertTriangle size={20} />
-            <div>
-              <b>Analysis Request Failed</b>
-              <p>{error}</p>
-              <span>Please ensure the backend is running (`uvicorn app.main:app`) and that Elexon BMRS endpoint parameters adhere to the 7-day chunking limit.</span>
-            </div>
-          </div>
-        )}
-
-        {/* Data Source & Status Bar */}
-        {data && (
-          <div className="audit-status-strip panel">
-            <div className="status-item">
-              <span className="status-label">DATA SOURCE</span>
-              <span className="status-val highlight">
-                <span className={isLive ? 'status-dot live' : 'status-dot saved'} />
-                {dataSource}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">FUELHH ACTUAL ROWS</span>
-              <span className="status-val">{fmt(status.actualRows)} observations</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">WINDFOR SNAPSHOTS</span>
-              <span className="status-val">{fmt(status.forecastVersions)} versions evaluated</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">MATCHED PERIODS</span>
-              <span className="status-val">{fmt(status.matchedPeriods)} half-hours (100% matched)</span>
-            </div>
-          </div>
-        )}
-
-        {/* Summary Metrics Cards */}
-        <section className="section-block">
-          <div className="section-title">
-            <div>
-              <span className="section-kicker">PERFORMANCE SNAPSHOT</span>
-              <h2>Overall Forecast Accuracy Metrics</h2>
-            </div>
-            <span className="muted">
-              {data ? `${fmt(summary.matchedPeriods)} matched settlement periods (${data.period?.startDate} to ${data.period?.endDate})` : 'Awaiting data'}
-            </span>
-          </div>
-
-          <div className="metric-grid">
-            <MetricCard
-              label="Mean Absolute Error (MAE)"
-              value={fmt(summary.maeMw, 1)}
-              unit="MW"
-              note="Average absolute miss magnitude per half-hour period"
-              icon={Activity}
-              tag="Standard metric"
-              tagType="neutral"
-            />
-            <MetricCard
-              label="Root Mean Square Error (RMSE)"
-              value={fmt(summary.rmseMw, 1)}
-              unit="MW"
-              note="Quadratic penalty highlighting larger volume deviations"
-              icon={Zap}
-              tag="Variance penalty"
-              tagType="neutral"
-            />
-            <MetricCard
-              label="Mean Forecast Bias"
-              value={fmt(summary.biasMw, 1)}
-              unit="MW"
-              note={summary.biasMw > 0 ? 'Tends to over-forecast (forecast > actual)' : summary.biasMw < 0 ? 'Tends to under-forecast (forecast < actual)' : 'Balanced errors'}
-              icon={summary.biasMw >= 0 ? ArrowUpRight : ArrowDownRight}
-              tag={summary.biasMw > 0 ? 'Over-forecast' : summary.biasMw < 0 ? 'Under-forecast' : 'Neutral'}
-              tagType={summary.biasMw > 0 ? 'warning' : 'info'}
-            />
-            <MetricCard
-              label="WAPE"
-              value={fmt(summary.wapePercent, 2)}
-              unit="%"
-              note="Sum of absolute errors divided by total actual wind output"
-              icon={Cloud}
-              tag="Relative Error"
-              tagType="neutral"
-            />
-          </div>
-        </section>
-
-        {/* Charts Grid */}
-        <section className="charts-grid">
-          {/* Time Series Chart */}
-          <article className="panel chart-panel wide">
-            <div className="panel-heading">
+          {/* Configuration & Controls Card */}
+          <section className="editorial-card control-card">
+            <div className="control-header">
               <div>
-                <span className="section-kicker">GENERATION TIME SERIES</span>
-                <h2>Pre-Cutoff Forecast vs Outturn Actual</h2>
-                <p>Half-hourly national wind generation (MW) across the delivery window</p>
+                <span className="card-kicker">QUERY SETTINGS</span>
+                <h3 className="card-title">Dataset &amp; Trading Cutoff Window</h3>
               </div>
-              <div className="legend-inline">
-                <span className="legend-forecast" /> Selected Day-Ahead Forecast
-                <span className="legend-actual" /> FUELHH Outturn Actual
-              </div>
-            </div>
-            {chartData.length ? (
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e8edf2" />
-                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#6e7f91' }} minTickGap={45} />
-                    <YAxis tick={{ fontSize: 11, fill: '#6e7f91' }} width={65} unit=" MW" />
-                    <Tooltip
-                      formatter={(val, name) => [`${fmt(val, 1)} MW`, name]}
-                      labelFormatter={(label) => `Delivery: ${label}`}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="forecast"
-                      name="Forecast MW"
-                      stroke="#0c8f82"
-                      strokeWidth={2}
-                      dot={false}
-                      connectNulls
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="actual"
-                      name="Actual MW"
-                      stroke="#4f63c7"
-                      strokeWidth={2}
-                      dot={false}
-                      connectNulls
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="empty-chart">
-                <Wind size={32} />
-                <b>No observation records to plot</b>
-                <span>Load a verified artifact or execute a live Elexon query above.</span>
-              </div>
-            )}
-          </article>
 
-          {/* Daily MAE Chart */}
-          <article className="panel chart-panel">
-            <div className="panel-heading">
-              <div>
-                <span className="section-kicker">DAILY DISPERSION</span>
-                <h2>Daily Mean Absolute Error</h2>
-                <p>MAE by UK local delivery date (MW)</p>
-              </div>
-            </div>
-            {(data?.daily || []).length ? (
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart data={data.daily} margin={{ top: 10, right: 15, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e8edf2" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#6e7f91' }} minTickGap={25} />
-                    <YAxis tick={{ fontSize: 11, fill: '#6e7f91' }} width={55} unit=" MW" />
-                    <Tooltip formatter={(val) => [`${fmt(val, 1)} MW`, 'Daily MAE']} />
-                    <Area
-                      type="monotone"
-                      dataKey="maeMw"
-                      name="MAE MW"
-                      stroke="#0c8f82"
-                      fill="#0c8f82"
-                      fillOpacity={0.16}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="empty-chart small">
-                <Activity size={26} />
-                <span>Daily accuracy chart will appear once data is loaded.</span>
-              </div>
-            )}
-          </article>
-        </section>
-
-        {/* Detailed Data Tables with Tabs */}
-        <section className="panel table-panel">
-          <div className="table-header-row">
-            <div>
-              <span className="section-kicker">DETAILED RESULTS</span>
-              <div className="tab-pill-group">
+              {/* Preset Datasets Switcher */}
+              <div className="preset-pill-group" role="group" aria-label="Preset Datasets">
+                <span className="preset-group-label">Verified Presets:</span>
                 <button
                   type="button"
-                  className={`tab-pill ${activeTab === 'daily' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('daily')}
+                  className={`preset-tab ${sourceMode === 'july-2026' ? 'active' : ''}`}
+                  onClick={() => handleSelectPreset('july-2026')}
+                  disabled={loading}
                 >
-                  <CalendarDays size={14} /> Daily Accuracy Breakdown ({data?.daily?.length || 0} days)
+                  July 2026 (BST Summer)
                 </button>
                 <button
                   type="button"
-                  className={`tab-pill ${activeTab === 'observations' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('observations')}
+                  className={`preset-tab ${sourceMode === 'january-2026' ? 'active' : ''}`}
+                  onClick={() => handleSelectPreset('january-2026')}
+                  disabled={loading}
                 >
-                  <Activity size={14} /> Auditable Settlement Periods ({chartData.length} records)
+                  January 2026 (GMT Winter)
+                </button>
+                <button
+                  type="button"
+                  className={`preset-tab ${sourceMode === 'live' ? 'active' : ''}`}
+                  onClick={() => setSourceMode('live')}
+                  disabled={loading}
+                >
+                  ⚡ Live Elexon API Query
                 </button>
               </div>
             </div>
-            <button className="secondary-btn" onClick={downloadCsv} disabled={!chartData.length}>
-              <Download size={15} /> Export Observations CSV
-            </button>
-          </div>
 
-          {activeTab === 'daily' ? (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>UK Delivery Date</th>
-                    <th>Matched Periods</th>
-                    <th>MAE (MW)</th>
-                    <th>RMSE (MW)</th>
-                    <th>Bias (MW)</th>
-                    <th>WAPE (%)</th>
-                    <th>Forecast Bias Tendency</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data?.daily || []).map((row) => (
-                    <tr key={row.date}>
-                      <td><b>{row.date}</b></td>
-                      <td>{row.matchedPeriods} / 48</td>
-                      <td><b>{fmt(row.maeMw, 1)}</b></td>
-                      <td>{fmt(row.rmseMw, 1)}</td>
-                      <td className={row.biasMw > 0 ? 'error-positive' : row.biasMw < 0 ? 'error-negative' : ''}>
-                        {row.biasMw > 0 ? `+${fmt(row.biasMw, 1)}` : fmt(row.biasMw, 1)}
-                      </td>
-                      <td><b>{fmt(row.wapePercent, 2)}%</b></td>
-                      <td>
-                        <span className={`tendency-pill ${row.biasMw > 0 ? 'over' : row.biasMw < 0 ? 'under' : 'neutral'}`}>
-                          {row.biasMw > 0 ? 'Over-forecast' : row.biasMw < 0 ? 'Under-forecast' : 'Balanced'}
-                        </span>
-                      </td>
-                    </tr>
+            {/* Custom Range & Cutoff Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                loadData('live', start, end, cutoff);
+              }}
+              className="control-form"
+            >
+              <div className="form-field">
+                <label htmlFor="input-start-date">Delivery Date From</label>
+                <input
+                  id="input-start-date"
+                  type="date"
+                  value={start}
+                  max={end}
+                  onChange={(e) => setStart(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="input-end-date">Delivery Date To</label>
+                <input
+                  id="input-end-date"
+                  type="date"
+                  value={end}
+                  min={start}
+                  onChange={(e) => setEnd(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="input-cutoff-hour">Gate Cutoff (Europe/London on D-1)</label>
+                <select
+                  id="input-cutoff-hour"
+                  value={cutoff}
+                  onChange={(e) => setCutoff(e.target.value)}
+                  disabled={loading}
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {String(i).padStart(2, '0')}:00 local {cutoff === String(i) ? '(Current)' : ''}
+                    </option>
                   ))}
-                </tbody>
-              </table>
-              {!(data?.daily || []).length && (
-                <div className="table-empty">No daily metrics available yet.</div>
-              )}
+                </select>
+              </div>
+
+              <div className="form-action">
+                <button
+                  type="submit"
+                  className="editorial-action-btn"
+                  disabled={loading}
+                >
+                  <RefreshCw size={14} className={loading ? 'spin' : ''} />
+                  {loading ? 'Querying Elexon…' : 'Run Live Analysis'}
+                </button>
+              </div>
+            </form>
+
+            {/* Subtle Cutoff Rule Banner */}
+            <div className="editorial-callout-notice">
+              <Sliders size={16} className="notice-icon" />
+              <div className="notice-text">
+                <strong>Cutoff Policy:</strong> Gate closure is evaluated at <strong>{cutoff}:00 Europe/London</strong> on the day prior to delivery (D-1). Only forecast snapshots published at or before this local time are eligible. During BST (summer), 10:00 local maps to 09:00 UTC.
+              </div>
             </div>
-          ) : (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Delivery Time (UTC)</th>
-                    <th>Delivery Time (UK Local)</th>
-                    <th>Selected Forecast Published</th>
-                    <th>Forecast (MW)</th>
-                    <th>Actual (MW)</th>
-                    <th>Error (MW)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {chartData.slice(0, 50).map((r, i) => (
-                    <tr key={`${r.startTime}-${i}`}>
-                      <td>{new Date(r.startTime).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
-                      <td>{new Date(r.startTime).toLocaleString('en-GB', { timeZone: 'Europe/London' })}</td>
-                      <td>{new Date(r.publishTime).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
-                      <td><b>{fmt(r.forecast, 1)}</b></td>
-                      <td>{fmt(r.actual, 1)}</td>
-                      <td className={r.error > 0 ? 'error-positive' : r.error < 0 ? 'error-negative' : ''}>
-                        {r.error > 0 ? `+${fmt(r.error, 1)}` : fmt(r.error, 1)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="table-footer">
-                Showing top {Math.min(chartData.length, 50)} of {chartData.length} half-hourly settlement observations.
-                Use "Export Observations CSV" for full spreadsheet analysis.
+          </section>
+
+          {/* Loading Banner */}
+          {loading && (
+            <div className="editorial-loading-card" role="status" aria-live="polite">
+              <RefreshCw size={22} className="spin text-cerulean" />
+              <div>
+                <h4 className="loading-title">Ingesting and Aggregating Settlement Data…</h4>
+                <p className="loading-desc">{loadingMsg}</p>
               </div>
             </div>
           )}
-        </section>
 
-        {/* Methodology & Assumptions Section */}
-        {showMethodology && (
-          <section className="panel methodology-panel">
-            <div className="panel-heading">
+          {/* Error Banner */}
+          {error && (
+            <div className="editorial-error-card" role="alert">
+              <AlertTriangle size={22} className="text-coral" />
               <div>
-                <span className="section-kicker">AUDITABLE METHODOLOGY</span>
-                <h2>Data Sourcing, Matching Logic & Metric Definitions</h2>
-                <p>Full transparency on settlement granularity and trading cutoff assumptions</p>
+                <h4 className="error-title">Analysis Request Failed</h4>
+                <p className="error-desc">{error}</p>
+                <span className="error-hint">Verify that the backend is running (`uvicorn app.main:app`) on port 8000 and that Elexon parameters obey the 7-day query ceiling.</span>
               </div>
-              <span className="source-pill">
-                <CheckCircle2 size={13} /> Verified Prototype Methodology
-              </span>
             </div>
+          )}
 
-            <div className="methodology-grid">
-              <article className="methodology-card">
-                <h3>1. Elexon Datasets</h3>
-                <p>
-                  <b>Outturn Actuals:</b> Retrieved from Elexon BMRS <code>/datasets/FUELHH</code> filtered to <code>fuelType="WIND"</code>. Values represent average MW over each 30-minute settlement period.<br />
-                  <b>Forecast Publications:</b> Retrieved from <code>/datasets/WINDFOR</code> (hourly average MW snapshots published sequentially ahead of delivery).
-                </p>
-              </article>
+          {/* Audit Status Strip */}
+          {data && (
+            <section className="audit-strip-card" aria-label="Ingestion Audit Metadata">
+              <div className="audit-item">
+                <span className="audit-label">ACTIVE DATA SOURCE</span>
+                <span className="audit-value highlight">
+                  <span className={`status-dot ${isLive ? 'live' : 'saved'}`} />
+                  {dataSource}
+                </span>
+              </div>
+              <div className="audit-item">
+                <span className="audit-label">FUELHH ACTUALS</span>
+                <span className="audit-value">{fmt(status.actualRows)} rows</span>
+              </div>
+              <div className="audit-item">
+                <span className="audit-label">WINDFOR SNAPSHOTS</span>
+                <span className="audit-value">{fmt(status.forecastVersions)} snapshots</span>
+              </div>
+              <div className="audit-item">
+                <span className="audit-label">MATCHED PERIODS</span>
+                <span className="audit-value">{fmt(status.matchedPeriods)} / {fmt(status.matchedPeriods)} (100%)</span>
+              </div>
+            </section>
+          )}
 
-              <article className="methodology-card">
-                <h3>2. Procurement Cutoff Rule</h3>
-                <p>
-                  Cutoff is evaluated in <b>Europe/London</b> local time on <b>D-1</b> (the day before delivery).
-                  Only forecast snapshots published at or before the cutoff are eligible. In BST (UTC+1), 10:00 local corresponds to 09:00 UTC. The latest eligible snapshot is selected.
-                </p>
-              </article>
-
-              <article className="methodology-card">
-                <h3>3. Granularity Alignment</h3>
-                <p>
-                  WINDFOR forecasts are 1-hour average MW values. FUELHH actuals are 30-minute average MW values.
-                  Each 1-hour forecast is matched with <b>both</b> the <code>:00</code> and <code>:30</code> actuals within that hour (up to 48 matched periods/day). Actuals are never averaged, preserving true settlement cash-out exposure.
-                </p>
-              </article>
-
-              <article className="methodology-card">
-                <h3>4. Accuracy Formulas</h3>
-                <p>
-                  <b>MAE:</b> Mean Absolute Error (1/n &Sigma; |forecast &minus; actual|)<br />
-                  <b>RMSE:</b> Root Mean Square Error (&radic;(1/n &Sigma; (forecast &minus; actual)&sup2;))<br />
-                  <b>Bias:</b> Mean Signed Error (1/n &Sigma; (forecast &minus; actual), positive = over-forecast)<br />
-                  <b>WAPE:</b> (&Sigma; |forecast &minus; actual| / &Sigma; |actual|) &times; 100%
-                </p>
-              </article>
-            </div>
-
-            <div className="disclaimer-banner">
-              <Info size={16} />
-              <span>
-                <b>Prototype Notice & Operational Disclaimer:</b> The 10:00 local D-1 cutoff and hourly-to-half-hourly matching rules are explicit prototype conventions. Commercial trading desks operating under BSC settlement rules should confirm exact gate-closure cutoffs, intra-day updates, and contract-specific imbalance cashout pricing before relying on results for trading decisions.
-              </span>
+          {/* Summary KPI Cards Grid */}
+          <section className="kpi-section" aria-label="Summary Performance Metrics">
+            <div className="kpi-grid">
+              <MetricCard
+                label="Mean Absolute Error (MAE)"
+                value={fmt(summary.maeMw, 1)}
+                unit="MW"
+                note="Average magnitude of forecast deviation per half-hour"
+                icon={Activity}
+                tag="Primary Accuracy"
+                tagType="neutral"
+              />
+              <MetricCard
+                label="Root Mean Square Error (RMSE)"
+                value={fmt(summary.rmseMw, 1)}
+                unit="MW"
+                note="Quadratic penalty heavily weighting severe volume misses"
+                icon={Zap}
+                tag="Variance Penalty"
+                tagType="neutral"
+              />
+              <MetricCard
+                label="Mean Forecast Bias"
+                value={fmt(summary.biasMw, 1)}
+                unit="MW"
+                note={summary.biasMw > 0 ? 'Tends to over-forecast (Forecast > Actual)' : summary.biasMw < 0 ? 'Tends to under-forecast (Forecast < Actual)' : 'Balanced errors'}
+                icon={summary.biasMw >= 0 ? ArrowUpRight : ArrowDownRight}
+                tag={summary.biasMw > 0 ? '+Over-forecast' : summary.biasMw < 0 ? '-Under-forecast' : 'Neutral'}
+                tagType={summary.biasMw > 0 ? 'coral' : 'cerulean'}
+              />
+              <MetricCard
+                label="Weighted Error (WAPE)"
+                value={fmt(summary.wapePercent, 2)}
+                unit="%"
+                note="Total absolute error scaled by total outturn generation"
+                icon={Cloud}
+                tag="Relative Miss"
+                tagType="neutral"
+              />
             </div>
           </section>
-        )}
 
-        {/* Footer */}
-        <footer className="footer">
-          <span>WindScope UK · Day-Ahead Wind Forecast Accuracy Platform</span>
-          <span>Forecast Error = Forecast MW − Actual MW</span>
-          <span><CheckCircle2 size={13} /> Elexon BMRS Verified Integration</span>
-        </footer>
+          {/* Charts Grid */}
+          <section className="editorial-charts-grid" aria-label="Visualizations">
+            {/* Time Series Chart */}
+            <article className="editorial-card chart-card wide">
+              <div className="chart-card-header">
+                <div>
+                  <span className="card-kicker">GENERATION TIME SERIES</span>
+                  <h3 className="card-title">Day-Ahead Forecast vs Outturn Actual</h3>
+                  <p className="card-caption">National wind generation across half-hourly settlement periods</p>
+                </div>
+                <div className="chart-legend-box">
+                  <span className="legend-chip legend-forecast">Selected Day-Ahead Forecast</span>
+                  <span className="legend-chip legend-actual">FUELHH Outturn Actual</span>
+                </div>
+              </div>
+
+              {chartData.length ? (
+                <div className="chart-container">
+                  <ResponsiveContainer width="100%" height={340}>
+                    <LineChart data={chartData} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eee6da" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#677a8e' }} minTickGap={45} />
+                      <YAxis tick={{ fontSize: 11, fill: '#677a8e' }} width={65} unit=" MW" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e5ded2',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 14px rgba(35, 45, 60, 0.08)',
+                          fontSize: '12px'
+                        }}
+                        formatter={(val, name) => [`${fmt(val, 1)} MW`, name]}
+                        labelFormatter={(label) => `Delivery: ${label}`}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="forecast"
+                        name="Day-Ahead Forecast (MW)"
+                        stroke="#eb5d38"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="actual"
+                        name="Outturn Actual (MW)"
+                        stroke="#2c6ecb"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="empty-chart-box">
+                  <Wind size={36} className="text-muted-icon" />
+                  <span className="empty-title">No observations loaded</span>
+                  <span className="empty-sub">Select a preset or trigger a live analysis above.</span>
+                </div>
+              )}
+            </article>
+
+            {/* Daily MAE Chart */}
+            <article className="editorial-card chart-card">
+              <div className="chart-card-header">
+                <div>
+                  <span className="card-kicker">DAILY DISPERSION</span>
+                  <h3 className="card-title">Daily Mean Absolute Error</h3>
+                  <p className="card-caption">MAE grouped by UK local delivery date (MW)</p>
+                </div>
+              </div>
+
+              {(data?.daily || []).length ? (
+                <div className="chart-container">
+                  <ResponsiveContainer width="100%" height={340}>
+                    <AreaChart data={data.daily} margin={{ top: 15, right: 15, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eee6da" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#677a8e' }} minTickGap={25} />
+                      <YAxis tick={{ fontSize: 11, fill: '#677a8e' }} width={55} unit=" MW" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e5ded2',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 14px rgba(35, 45, 60, 0.08)',
+                          fontSize: '12px'
+                        }}
+                        formatter={(val) => [`${fmt(val, 1)} MW`, 'Daily MAE']}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="maeMw"
+                        name="Daily MAE (MW)"
+                        stroke="#769866"
+                        fill="#769866"
+                        fillOpacity={0.2}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="empty-chart-box">
+                  <Activity size={32} className="text-muted-icon" />
+                  <span className="empty-title">Awaiting daily aggregation</span>
+                </div>
+              )}
+            </article>
+          </section>
+
+          {/* Tables Section with Accessible Region and Tabs */}
+          <section className="editorial-card table-card" aria-label="Detailed Results">
+            <div className="table-nav-row">
+              <div className="table-title-area">
+                <span className="card-kicker">AUDIT RECORDS</span>
+                <div className="tab-pill-container" role="tablist" aria-label="Table View Switcher">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'daily'}
+                    className={`tab-btn ${activeTab === 'daily' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('daily')}
+                  >
+                    <CalendarDays size={14} />
+                    Daily Accuracy Breakdown ({data?.daily?.length || 0} days)
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'observations'}
+                    className={`tab-btn ${activeTab === 'observations' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('observations')}
+                  >
+                    <Activity size={14} />
+                    Settlement Periods ({chartData.length} records)
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="editorial-download-btn"
+                onClick={downloadCsv}
+                disabled={!chartData.length}
+              >
+                <Download size={14} />
+                Export Observations CSV
+              </button>
+            </div>
+
+            {/* Responsive Table Wrapper with Accessible Region & Sticky Headers */}
+            {activeTab === 'daily' ? (
+              <div
+                className="table-scroll-wrapper"
+                tabIndex={0}
+                role="region"
+                aria-label="Daily accuracy breakdown table"
+              >
+                <table className="editorial-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">UK Delivery Date</th>
+                      <th scope="col">Matched Periods</th>
+                      <th scope="col">MAE (MW)</th>
+                      <th scope="col">RMSE (MW)</th>
+                      <th scope="col">Bias (MW)</th>
+                      <th scope="col">WAPE (%)</th>
+                      <th scope="col">Forecast Bias Tendency</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data?.daily || []).map((row) => (
+                      <tr key={row.date}>
+                        <td><strong>{row.date}</strong></td>
+                        <td>{row.matchedPeriods} / 48</td>
+                        <td><strong>{fmt(row.maeMw, 1)}</strong></td>
+                        <td>{fmt(row.rmseMw, 1)}</td>
+                        <td className={row.biasMw > 0 ? 'cell-coral' : row.biasMw < 0 ? 'cell-cerulean' : ''}>
+                          {row.biasMw > 0 ? `+${fmt(row.biasMw, 1)}` : fmt(row.biasMw, 1)}
+                        </td>
+                        <td><strong>{fmt(row.wapePercent, 2)}%</strong></td>
+                        <td>
+                          <span className={`bias-pill ${row.biasMw > 0 ? 'over' : row.biasMw < 0 ? 'under' : 'neutral'}`}>
+                            {row.biasMw > 0 ? '+Over-forecast' : row.biasMw < 0 ? '-Under-forecast' : 'Balanced'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!(data?.daily || []).length && (
+                  <div className="table-empty-row">No daily metrics available. Load a dataset above.</div>
+                )}
+              </div>
+            ) : (
+              <div
+                className="table-scroll-wrapper"
+                tabIndex={0}
+                role="region"
+                aria-label="Auditable settlement observations table"
+              >
+                <table className="editorial-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Delivery Time (UTC)</th>
+                      <th scope="col">Delivery Time (UK Local)</th>
+                      <th scope="col">Selected Snapshot Published</th>
+                      <th scope="col">Forecast (MW)</th>
+                      <th scope="col">Actual (MW)</th>
+                      <th scope="col">Error (MW)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chartData.slice(0, 50).map((r, i) => (
+                      <tr key={`${r.startTime}-${i}`}>
+                        <td>{new Date(r.startTime).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
+                        <td>{new Date(r.startTime).toLocaleString('en-GB', { timeZone: 'Europe/London' })}</td>
+                        <td>{new Date(r.publishTime).toLocaleString('en-GB', { timeZone: 'UTC' })}</td>
+                        <td><strong>{fmt(r.forecast, 1)}</strong></td>
+                        <td>{fmt(r.actual, 1)}</td>
+                        <td className={r.error > 0 ? 'cell-coral' : r.error < 0 ? 'cell-cerulean' : ''}>
+                          {r.error > 0 ? `+${fmt(r.error, 1)}` : fmt(r.error, 1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="table-caption-bar">
+                  Showing top {Math.min(chartData.length, 50)} of {chartData.length} settlement observations.
+                  Download CSV for the full audit ledger.
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Methodology & Market Assumptions Section */}
+          <section className="editorial-card methodology-section" id="methodology">
+            <div className="methodology-header">
+              <div>
+                <span className="card-kicker">GOVERNANCE &amp; METHODOLOGY</span>
+                <h3 className="section-headline">Data Sourcing, Matching Logic &amp; Formulas</h3>
+                <p className="section-subtext">
+                  Complete audit transparency on settlement rules, timezone boundaries, and statistical scoring.
+                </p>
+              </div>
+              <div className="methodology-badge">
+                <CheckCircle2 size={15} />
+                <span>Verified Balancing Mechanism Spec</span>
+              </div>
+            </div>
+
+            <div className="methodology-grid" id="datasources">
+              <article className="methodology-item">
+                <div className="methodology-num">01</div>
+                <h4 className="methodology-title">Elexon BMRS Datasets</h4>
+                <p className="methodology-body">
+                  <strong>Outturn Actuals:</strong> Ingested from Elexon BMRS <code>/datasets/FUELHH</code> filtered strictly to <code>fuelType=&quot;WIND&quot;</code>. Each row represents average generation (MW) over a 30-minute settlement period.<br />
+                  <strong>Forecast Publications:</strong> Ingested from <code>/datasets/WINDFOR</code> (hourly average MW forecasts published sequentially ahead of real-time delivery).
+                </p>
+              </article>
+
+              <article className="methodology-item">
+                <div className="methodology-num">02</div>
+                <h4 className="methodology-title">Procurement Cutoff Policy</h4>
+                <p className="methodology-body">
+                  Cutoff is evaluated in <strong>Europe/London</strong> local time on <strong>D-1</strong> (the day before delivery). Only forecast snapshots published at or before the cutoff are eligible. In BST (UTC+1), 10:00 local maps to 09:00 UTC. The latest pre-cutoff snapshot is selected.
+                </p>
+              </article>
+
+              <article className="methodology-item">
+                <div className="methodology-num">03</div>
+                <h4 className="methodology-title">Granularity Alignment</h4>
+                <p className="methodology-body">
+                  WINDFOR forecasts are 1-hour average MW values. FUELHH actuals are 30-minute average MW values. Each 1-hour forecast is mapped to <strong>both</strong> the <code>:00</code> and <code>:30</code> actuals within that hour (up to 48 matched periods/day). Actuals are never averaged, preserving true settlement cashout volatility.
+                </p>
+              </article>
+
+              <article className="methodology-item">
+                <div className="methodology-num">04</div>
+                <h4 className="methodology-title">Mathematical Metric Formulas</h4>
+                <p className="methodology-body">
+                  <strong>MAE:</strong> (1/n &Sigma; |forecast &minus; actual|)<br />
+                  <strong>RMSE:</strong> (&radic;(1/n &Sigma; (forecast &minus; actual)&sup2;))<br />
+                  <strong>Bias:</strong> (1/n &Sigma; (forecast &minus; actual)), positive = over-forecast<br />
+                  <strong>WAPE:</strong> (&Sigma; |forecast &minus; actual| / &Sigma; |actual|) &times; 100%
+                </p>
+              </article>
+            </div>
+
+            {/* Prototype Operational Disclaimer */}
+            <div className="methodology-disclaimer">
+              <Info size={17} className="disclaimer-icon" />
+              <div className="disclaimer-text">
+                <strong>Prototype Notice &amp; Operational Disclaimer:</strong> The 10:00 local D-1 cutoff and hourly-to-half-hourly matching rules are explicit prototype conventions. Commercial trading desks operating under BSC settlement rules should confirm exact gate-closure cutoffs, intra-day updates, and contract-specific imbalance cashout pricing before relying on results for trading decisions.
+              </div>
+            </div>
+          </section>
+
+        </div>
       </main>
+
+      {/* Visually Distinctive Illustrated Landscape Footer */}
+      <LandscapeFooter onNavigate={scrollToSection} />
     </div>
   );
 }
