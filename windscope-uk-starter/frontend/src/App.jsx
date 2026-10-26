@@ -12,7 +12,7 @@ import {
 import WindScopeHeader from './components/WindScopeHeader';
 import LandscapeFooter from './components/LandscapeFooter';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const fmt = (n, digits = 0) => (n == null ? '—' : Number(n).toLocaleString('en-GB', { maximumFractionDigits: digits, minimumFractionDigits: digits }));
 
 function MetricCard({ label, value, unit, note, icon: Icon, tag, tagType }) {
@@ -41,8 +41,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [error, setError] = useState('');
-  const [start, setStart] = useState('2026-07-01');
-  const [end, setEnd] = useState('2026-07-07');
+  const [start, setStart] = useState('2026-01-01');
+  const [end, setEnd] = useState('2026-01-31');
   const [cutoff, setCutoff] = useState('10');
   const [activeTab, setActiveTab] = useState('daily'); // 'daily' | 'observations'
   const [sourceMode, setSourceMode] = useState('live'); // 'live' | 'july-2026' | 'january-2026'
@@ -81,30 +81,30 @@ export default function App() {
     }
   }
 
-  // Initial load directly queries the REAL LIVE ELEXON BMRS API
+  // Initial load directly queries the REAL LIVE ELEXON BMRS API for January 2026 (Assignment Core)
   useEffect(() => {
-    loadData('live', '2026-07-01', '2026-07-07', '10');
+    loadData('live', '2026-01-01', '2026-01-31', '10');
   }, []);
 
   function handleSelectPreset(preset) {
-    if (preset === 'live-july-7d') {
-      setStart('2026-07-01');
-      setEnd('2026-07-07');
+    if (preset === 'live-january-core') {
+      setStart('2026-01-01');
+      setEnd('2026-01-31');
       setCutoff('10');
       setSourceMode('live');
-      loadData('live', '2026-07-01', '2026-07-07', '10');
+      loadData('live', '2026-01-01', '2026-01-31', '10');
     } else if (preset === 'live-july-month') {
       setStart('2026-07-01');
       setEnd('2026-07-31');
       setCutoff('10');
       setSourceMode('live');
       loadData('live', '2026-07-01', '2026-07-31', '10');
-    } else if (preset === 'live-january-month') {
+    } else if (preset === 'cached-january') {
       setStart('2026-01-01');
       setEnd('2026-01-31');
       setCutoff('10');
-      setSourceMode('live');
-      loadData('live', '2026-01-01', '2026-01-31', '10');
+      setSourceMode('january-2026');
+      loadData('january-2026', '2026-01-01', '2026-01-31', '10');
     } else if (preset === 'cached-july') {
       setStart('2026-07-01');
       setEnd('2026-07-31');
@@ -279,33 +279,33 @@ export default function App() {
 
               {/* Preset Datasets Switcher */}
               <div className="preset-pill-group" role="group" aria-label="Preset Datasets">
-                <span className="preset-group-label">Quick Queries:</span>
+                <span className="preset-group-label">Analysis Datasets:</span>
                 <button
                   type="button"
-                  className={`preset-tab ${sourceMode === 'live' && start === '2026-07-01' && end === '2026-07-07' ? 'active' : ''}`}
-                  onClick={() => handleSelectPreset('live-july-7d')}
+                  className={`preset-tab ${sourceMode === 'live' && start === '2026-01-01' && end === '2026-01-31' ? 'active' : ''}`}
+                  onClick={() => handleSelectPreset('live-january-core')}
                   disabled={loading}
-                  title="Direct live call to Elexon BMRS for 1-7 July (Fast Live)"
+                  title="Direct live call to Elexon BMRS for January 2026 (Assignment Core Delivery)"
                 >
-                  ⚡ Live Elexon: July 1–7 (Fast)
+                  ⚡ Live Elexon: Jan 2026 (Assignment Core)
                 </button>
                 <button
                   type="button"
                   className={`preset-tab ${sourceMode === 'live' && start === '2026-07-01' && end === '2026-07-31' ? 'active' : ''}`}
                   onClick={() => handleSelectPreset('live-july-month')}
                   disabled={loading}
-                  title="Direct live call to Elexon BMRS for full month of July (~19s)"
+                  title="Direct live call to Elexon BMRS for July 2026 (BST Summer Comparison)"
                 >
-                  ⚡ Live Elexon: July 2026 (Month)
+                  ⚡ Live Elexon: July 2026 (Summer BST)
                 </button>
                 <button
                   type="button"
-                  className={`preset-tab ${sourceMode === 'live' && start === '2026-01-01' && end === '2026-01-31' ? 'active' : ''}`}
-                  onClick={() => handleSelectPreset('live-january-month')}
+                  className={`preset-tab ${sourceMode === 'january-2026' ? 'active' : ''}`}
+                  onClick={() => handleSelectPreset('cached-january')}
                   disabled={loading}
-                  title="Direct live call to Elexon BMRS for full month of January (~19s)"
+                  title="Loads pre-saved static JSON snapshot from backend/january-analysis.json"
                 >
-                  ⚡ Live Elexon: Jan 2026 (Month)
+                  📁 Jan 2026 Snapshot (Offline)
                 </button>
                 <button
                   type="button"
@@ -314,7 +314,7 @@ export default function App() {
                   disabled={loading}
                   title="Loads pre-saved static JSON snapshot from backend/july-2026-analysis.json"
                 >
-                  📁 Offline Snapshot (Cached)
+                  📁 July 2026 Snapshot (Offline)
                 </button>
               </div>
             </div>
