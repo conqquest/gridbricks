@@ -22,6 +22,25 @@ BASE_URL = "https://data.elexon.co.uk/bmrs/api/v1"
 UK = ZoneInfo("Europe/London")
 TIMEOUT = 25
 
+# The FUELHH endpoint rejects inclusive settlement-date ranges greater than 7
+# days: "The date range between SettlementDateFrom and SettlementDateTo
+# inclusive must not exceed 7 days."
+FUELHH_CHUNK_DAYS = 7
+
+
+def _date_chunks(start: date, end: date, chunk_days: int):
+    """Yield (chunk_start, chunk_end) pairs covering [start, end] inclusive.
+
+    Each chunk spans at most chunk_days calendar days (inclusive).
+    Example with chunk_days=7:
+      Jan 1 – Jan 10  ->  (Jan 1, Jan 7), (Jan 8, Jan 10)
+    """
+    chunk_start = start
+    while chunk_start <= end:
+        chunk_end = min(chunk_start + timedelta(days=chunk_days - 1), end)
+        yield chunk_start, chunk_end
+        chunk_start = chunk_end + timedelta(days=1)
+
 
 def _records(payload):
     if isinstance(payload, list):
@@ -35,27 +54,30 @@ def _records(payload):
 def fetch_actuals(start_date: date, end_date: date):
     """Fetch FUELHH actuals and filter WIND rows.
 
-    Uses settlement-date filters; Elexon may wrap results in a `data` object.
+    The FUELHH endpoint only accepts inclusive settlement-date ranges of at
+    most 7 days. Longer requests are split into sequential chunks of at most
+    FUELHH_CHUNK_DAYS days each. Any HTTP error raises immediately so callers
+    never receive silently partial data.
     """
     url = f"{BASE_URL}/datasets/FUELHH"
-    params = {
-        "settlementDateFrom": start_date.isoformat(),
-        "settlementDateTo": end_date.isoformat(),
-        "format": "json",
-    }
-    response = requests.get(url, params=params, timeout=TIMEOUT)
-    response.raise_for_status()
-    rows = _records(response.json())
     result = []
-    for row in rows:
-        fuel = str(row.get("fuelType", "")).upper()
-        if fuel != "WIND":
-            continue
-        start = row.get("startTime")
-        generation = row.get("generation")
-        if start is None or generation is None:
-            continue
-        result.append({"startTime": start, "actual": float(generation)})
+    for chunk_start, chunk_end in _date_chunks(start_date, end_date, FUELHH_CHUNK_DAYS):
+        params = {
+            "settlementDateFrom": chunk_start.isoformat(),
+            "settlementDateTo": chunk_end.isoformat(),
+            "format": "json",
+        }
+        response = requests.get(url, params=params, timeout=TIMEOUT)
+        response.raise_for_status()
+        for row in _records(response.json()):
+            fuel = str(row.get("fuelType", "")).upper()
+            if fuel != "WIND":
+                continue
+            start = row.get("startTime")
+            generation = row.get("generation")
+            if start is None or generation is None:
+                continue
+            result.append({"startTime": start, "actual": float(generation)})
     return result
 
 
