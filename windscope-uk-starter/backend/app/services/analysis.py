@@ -73,7 +73,9 @@ def get_analysis(start_date: date, end_date: date, cutoff_hour: int):
 
     by_day = defaultdict(list)
     for row in matched:
-        by_day[row["startTime"][:10]].append(row)
+        dt = _parse_datetime(row["startTime"])
+        day_key = dt.astimezone(UK).date().isoformat() if dt else row["startTime"][:10]
+        by_day[day_key].append(row)
     daily = [{"date": day, **_metric_rows(rows)} for day, rows in sorted(by_day.items())]
     return {
         "period": {"startDate": start_date.isoformat(), "endDate": end_date.isoformat()},

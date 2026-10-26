@@ -168,6 +168,57 @@ class TestCutoffExclusion:
         result = _run(monkeypatch, actuals, forecasts, start=date(2026, 1, 1), end=date(2026, 1, 1))
         assert result["dataStatus"]["matchedPeriods"] == 0
 
+    def test_bst_cutoff_published_before_0900_utc_is_eligible(self, monkeypatch):
+        """During BST, 10:00 Europe/London is 09:00 UTC. 08:59 UTC is eligible."""
+        summer_day = date(2026, 7, 15)
+        actuals = [_make_actual("2026-07-15T12:00:00Z", 5000.0)]
+        # D-1 is 2026-07-14. Cutoff 10:00 UK = 09:00 UTC. 08:59 UTC is before cutoff.
+        forecasts = [
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T08:59:00Z", 4900.0),
+        ]
+        result = _run(monkeypatch, actuals, forecasts, start=summer_day, end=summer_day, cutoff=10)
+        assert result["dataStatus"]["matchedPeriods"] >= 1
+        assert len(result["observations"]) >= 1
+        assert result["observations"][0]["forecast"] == 4900.0
+
+    def test_bst_cutoff_published_at_0900_utc_is_eligible(self, monkeypatch):
+        """During BST, 10:00 Europe/London is exactly 09:00 UTC. 09:00 UTC is eligible (inclusive)."""
+        summer_day = date(2026, 7, 15)
+        actuals = [_make_actual("2026-07-15T12:00:00Z", 5000.0)]
+        forecasts = [
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T09:00:00Z", 4900.0),
+        ]
+        result = _run(monkeypatch, actuals, forecasts, start=summer_day, end=summer_day, cutoff=10)
+        assert result["dataStatus"]["matchedPeriods"] >= 1
+        assert len(result["observations"]) >= 1
+        assert result["observations"][0]["forecast"] == 4900.0
+
+    def test_bst_cutoff_published_at_0901_utc_is_excluded(self, monkeypatch):
+        """During BST, 10:00 Europe/London is 09:00 UTC. 09:01 UTC is after cutoff -> excluded."""
+        summer_day = date(2026, 7, 15)
+        actuals = [_make_actual("2026-07-15T12:00:00Z", 5000.0)]
+        forecasts = [
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T09:01:00Z", 4900.0),
+        ]
+        result = _run(monkeypatch, actuals, forecasts, start=summer_day, end=summer_day, cutoff=10)
+        assert result["dataStatus"]["matchedPeriods"] == 0
+        assert len(result["observations"]) == 0
+
+    def test_bst_cutoff_latest_eligible_forecast_selected(self, monkeypatch):
+        """When multiple versions exist around the BST cutoff, the latest eligible one is chosen."""
+        summer_day = date(2026, 7, 15)
+        actuals = [_make_actual("2026-07-15T12:00:00Z", 5000.0)]
+        forecasts = [
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T07:00:00Z", 4000.0),  # early
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T08:59:00Z", 4200.0),  # before cutoff
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T09:00:00Z", 4500.0),  # exactly at cutoff
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T09:01:00Z", 5000.0),  # after cutoff (excluded)
+        ]
+        result = _run(monkeypatch, actuals, forecasts, start=summer_day, end=summer_day, cutoff=10)
+        assert len(result["observations"]) == 1
+        assert result["observations"][0]["forecast"] == 4500.0
+        assert result["observations"][0]["publishTime"] == "2026-07-14T09:00:00Z"
+
 
 # ---------------------------------------------------------------------------
 # 3. Metric calculations: MAE, RMSE, bias, WAPE
@@ -296,3 +347,36 @@ class TestDailyAggregation:
         ]
         result = _run(monkeypatch, actuals, forecasts)
         assert result["summary"]["matchedPeriods"] == len(result["observations"])
+
+    def test_daily_aggregation_uses_uk_local_date_not_utc_date(self, monkeypatch):
+        """Observations spanning midnight BST must be grouped by UK delivery date, not UTC date.
+
+        During BST (UTC+1), the first delivery hour of 2026-07-15 runs from
+        00:00 to 01:00 BST. Its start timestamp in UTC is 2026-07-14T23:00:00Z.
+        Using UTC date slicing would assign this to 2026-07-14, but in UK local
+        time it belongs to the 2026-07-15 delivery date.
+        """
+        summer_day = date(2026, 7, 15)
+        actuals = [
+            _make_actual("2026-07-14T23:00:00Z", 3000.0),
+            _make_actual("2026-07-14T23:30:00Z", 3200.0),
+        ]
+        # Target startTime is 2026-07-14T23:00:00Z (00:00 BST on 2026-07-15)
+        # Cutoff on D-1 (2026-07-14) is 10:00 UK = 09:00 UTC
+        forecasts = [
+            _make_forecast("2026-07-14T23:00:00Z", "2026-07-14T08:00:00Z", 3100.0),
+        ]
+        result = _run(monkeypatch, actuals, forecasts, start=summer_day, end=summer_day, cutoff=10)
+
+        # Observations must be matched
+        assert len(result["observations"]) == 2
+
+        # Daily metrics must be grouped by UK local date ("2026-07-15"), NOT UTC date ("2026-07-14")
+        assert len(result["daily"]) == 1
+        assert result["daily"][0]["date"] == "2026-07-15"
+        assert result["daily"][0]["matchedPeriods"] == 2
+        assert result["daily"][0]["maeMw"] == 100.0
+
+        # Overall summary metrics must remain consistent with the observations
+        assert result["summary"]["matchedPeriods"] == 2
+        assert result["summary"]["maeMw"] == 100.0
