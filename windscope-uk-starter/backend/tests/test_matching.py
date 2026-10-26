@@ -47,9 +47,9 @@ class TestHalfHourMatching:
             _make_actual("2026-01-01T06:00:00Z", 5000.0),
             _make_actual("2026-01-01T06:30:00Z", 4800.0),
         ]
-        # Published 2026-01-01T04:00Z — well before cutoff (10:00 local = 10:00 UTC in Jan)
+        # Published on D-1 at 04:00 UTC — before the 10:00 UK cutoff on 2025-12-31.
         forecasts = [
-            _make_forecast("2026-01-01T06:00:00Z", "2026-01-01T04:00:00Z", 4900.0),
+            _make_forecast("2026-01-01T06:00:00Z", "2025-12-31T04:00:00Z", 4900.0),
         ]
         result = _run(monkeypatch, actuals, forecasts)
         obs = result["observations"]
@@ -66,7 +66,7 @@ class TestHalfHourMatching:
             _make_actual("2026-01-01T06:30:00Z", 4800.0),
         ]
         forecasts = [
-            _make_forecast("2026-01-01T06:00:00Z", "2026-01-01T04:00:00Z", 4900.0),
+            _make_forecast("2026-01-01T06:00:00Z", "2025-12-31T04:00:00Z", 4900.0),
         ]
         result = _run(monkeypatch, actuals, forecasts)
         obs = result["observations"]
@@ -80,7 +80,7 @@ class TestHalfHourMatching:
             _make_actual("2026-01-01T06:30:00Z", 4800.0),  # error = 4900 - 4800 = +100
         ]
         forecasts = [
-            _make_forecast("2026-01-01T06:00:00Z", "2026-01-01T04:00:00Z", 4900.0),
+            _make_forecast("2026-01-01T06:00:00Z", "2025-12-31T04:00:00Z", 4900.0),
         ]
         result = _run(monkeypatch, actuals, forecasts)
         obs = sorted(result["observations"], key=lambda o: o["startTime"])
@@ -94,7 +94,7 @@ class TestHalfHourMatching:
             # :30 deliberately absent
         ]
         forecasts = [
-            _make_forecast("2026-01-01T06:00:00Z", "2026-01-01T04:00:00Z", 4900.0),
+            _make_forecast("2026-01-01T06:00:00Z", "2025-12-31T04:00:00Z", 4900.0),
         ]
         result = _run(monkeypatch, actuals, forecasts)
         assert len(result["observations"]) == 1
@@ -103,7 +103,7 @@ class TestHalfHourMatching:
     def test_no_match_when_all_actuals_missing(self, monkeypatch):
         """No actuals at all -> zero matched periods, not an exception."""
         forecasts = [
-            _make_forecast("2026-01-01T06:00:00Z", "2026-01-01T04:00:00Z", 4900.0),
+            _make_forecast("2026-01-01T06:00:00Z", "2025-12-31T04:00:00Z", 4900.0),
         ]
         result = _run(monkeypatch, [], forecasts)
         assert result["dataStatus"]["matchedPeriods"] == 0
