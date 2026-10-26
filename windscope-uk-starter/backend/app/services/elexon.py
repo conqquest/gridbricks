@@ -27,6 +27,11 @@ TIMEOUT = 25
 # inclusive must not exceed 7 days."
 FUELHH_CHUNK_DAYS = 7
 
+# The WINDFOR endpoint rejects publication date ranges greater than 7 days:
+# "The date range between PublishDateTimeFrom and PublishDateTimeTo inclusive
+# must not exceed 7 days."
+WINDFOR_CHUNK_DAYS = 7
+
 
 def _date_chunks(start: date, end: date, chunk_days: int):
     """Yield (chunk_start, chunk_end) pairs covering [start, end] inclusive.
@@ -40,6 +45,23 @@ def _date_chunks(start: date, end: date, chunk_days: int):
         chunk_end = min(chunk_start + timedelta(days=chunk_days - 1), end)
         yield chunk_start, chunk_end
         chunk_start = chunk_end + timedelta(days=1)
+
+
+def _datetime_chunks(start_dt: datetime, end_dt: datetime, chunk_days: int = WINDFOR_CHUNK_DAYS):
+    """Yield (chunk_from, chunk_to) timezone-aware UTC datetime pairs covering [start_dt, end_dt].
+
+    Each chunk spans at most chunk_days (e.g. 7 days).
+    Adjacent chunks meet without gaps (chunk_to of chunk N == chunk_from of chunk N+1).
+    """
+    if start_dt >= end_dt:
+        yield start_dt, end_dt
+        return
+    chunk_from = start_dt
+    step = timedelta(days=chunk_days)
+    while chunk_from < end_dt:
+        chunk_to = min(chunk_from + step, end_dt)
+        yield chunk_from, chunk_to
+        chunk_from = chunk_to
 
 
 def _records(payload):
