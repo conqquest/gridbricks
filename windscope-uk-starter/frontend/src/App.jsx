@@ -424,7 +424,9 @@ export default function App() {
                   </strong>
                 </div>
                 <span className={`provenance-badge-pill ${isLive ? 'pill-live' : 'pill-cached'}`}>
-                  {isLive ? '● Live HTTP Ingestion Active' : '📁 Local Snapshot: july-2026-analysis.json'}
+                  {isLive
+                    ? '● Live HTTP Ingestion Active'
+                    : `📁 Local Snapshot: ${sourceMode === 'january-2026' ? 'january-analysis.json' : 'july-2026-analysis.json'}`}
                 </span>
               </div>
               <div className="provenance-grid">
@@ -498,7 +500,7 @@ export default function App() {
               />
               <MetricCard
                 label="Mean Forecast Bias"
-                value={fmt(summary.biasMw, 1)}
+                value={summary.biasMw > 0 ? `+${fmt(summary.biasMw, 1)}` : fmt(summary.biasMw, 1)}
                 unit="MW"
                 note={summary.biasMw > 0 ? 'Tends to over-forecast (Forecast > Actual)' : summary.biasMw < 0 ? 'Tends to under-forecast (Forecast < Actual)' : 'Balanced errors'}
                 icon={summary.biasMw >= 0 ? ArrowUpRight : ArrowDownRight}
