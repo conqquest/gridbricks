@@ -1,0 +1,1 @@
+{"detail":"Could not retrieve Elexon data: 400 Client Error: Bad Request for url: https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELHH?settlementDateFrom=2026-01-01&settlementDateTo=2026-01-31&format=json"}
