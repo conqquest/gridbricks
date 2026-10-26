@@ -117,11 +117,10 @@ def fetch_forecast_publications(start_date: date, end_date: date):
     """Fetch historical WINDFOR forecast snapshots via the datasets/WINDFOR endpoint.
 
     Queries all publications whose publishTime falls in the window
-    [start_date - 1 day, end_date + 1 day) UTC, retrieving every forecast
-    snapshot in a single HTTP request. This replaces the previous approach that
-    polled forecast/generation/wind/history with 8 hardcoded publication times
-    per day, which was slow (N*8 requests), fragile, and silently missed any
-    publication outside those fixed minutes.
+    [start_date - 1 day, end_date + 1 day) UTC. Because the WINDFOR endpoint
+    rejects publication-date ranges exceeding 7 days, longer intervals are
+    split into sequential chunks of at most WINDFOR_CHUNK_DAYS days each.
+    Any HTTP error raises immediately so callers never receive partial data.
 
     Verified against the live API: datasets/WINDFOR accepts
     publishDateTimeFrom and publishDateTimeTo as ISO-8601 UTC strings and
@@ -133,19 +132,26 @@ def fetch_forecast_publications(start_date: date, end_date: date):
     # the final delivery date.
     from_dt = datetime.combine(start_date - timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
     to_dt = datetime.combine(end_date + timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
-    params = {
-        "publishDateTimeFrom": from_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "publishDateTimeTo": to_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "format": "json",
-    }
-    response = requests.get(url, params=params, timeout=TIMEOUT)
-    response.raise_for_status()
+
     snapshots = []
-    for row in _records(response.json()):
-        start = row.get("startTime")
-        generation = row.get("generation")
-        published = row.get("publishTime")
-        if start is None or generation is None or published is None:
-            continue
-        snapshots.append({"startTime": start, "publishTime": published, "forecast": float(generation)})
+    seen = set()
+    for chunk_from, chunk_to in _datetime_chunks(from_dt, to_dt, WINDFOR_CHUNK_DAYS):
+        params = {
+            "publishDateTimeFrom": chunk_from.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "publishDateTimeTo": chunk_to.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "format": "json",
+        }
+        response = requests.get(url, params=params, timeout=TIMEOUT)
+        response.raise_for_status()
+        for row in _records(response.json()):
+            start = row.get("startTime")
+            generation = row.get("generation")
+            published = row.get("publishTime")
+            if start is None or generation is None or published is None:
+                continue
+            key = (start, published)
+            if key in seen:
+                continue
+            seen.add(key)
+            snapshots.append({"startTime": start, "publishTime": published, "forecast": float(generation)})
     return snapshots
