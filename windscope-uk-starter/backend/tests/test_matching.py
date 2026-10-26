@@ -219,6 +219,26 @@ class TestCutoffExclusion:
         assert result["observations"][0]["forecast"] == 4500.0
         assert result["observations"][0]["publishTime"] == "2026-07-14T09:00:00Z"
 
+    def test_forecast_published_in_newly_included_bst_hour_is_selected(self, monkeypatch):
+        """A forecast published in the newly included BST hour (23:00-23:59 UTC on D-2) is selected.
+
+        During BST, local midnight on D-1 is 23:00 UTC on D-2. A forecast published
+        at 23:30 UTC on D-2 falls in the first local hour of D-1 (00:30 BST), which
+        is before the 10:00 Europe/London cutoff, and can be selected.
+        """
+        summer_day = date(2026, 7, 15)
+        actuals = [_make_actual("2026-07-15T12:00:00Z", 5000.0)]
+        # Published at 23:30 UTC on 2026-07-13 (00:30 BST on 2026-07-14)
+        # Followed by a post-cutoff forecast at 09:30 UTC (10:30 BST)
+        forecasts = [
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-13T23:30:00Z", 4800.0),
+            _make_forecast("2026-07-15T12:00:00Z", "2026-07-14T09:30:00Z", 5200.0),  # post-cutoff (excluded)
+        ]
+        result = _run(monkeypatch, actuals, forecasts, start=summer_day, end=summer_day, cutoff=10)
+        assert len(result["observations"]) == 1
+        assert result["observations"][0]["forecast"] == 4800.0
+        assert result["observations"][0]["publishTime"] == "2026-07-13T23:30:00Z"
+
 
 # ---------------------------------------------------------------------------
 # 3. Metric calculations: MAE, RMSE, bias, WAPE

@@ -117,10 +117,14 @@ def fetch_forecast_publications(start_date: date, end_date: date):
     """Fetch historical WINDFOR forecast snapshots via the datasets/WINDFOR endpoint.
 
     Queries all publications whose publishTime falls in the window
-    [start_date - 1 day, end_date + 1 day) UTC. Because the WINDFOR endpoint
-    rejects publication-date ranges exceeding 7 days, longer intervals are
-    split into sequential chunks of at most WINDFOR_CHUNK_DAYS days each.
-    Any HTTP error raises immediately so callers never receive partial data.
+    [start_date - 1 day, end_date + 1 day) in Europe/London local time, converted
+    to UTC. During British Summer Time (BST), 00:00 Europe/London on D-1 corresponds
+    to 23:00 UTC on D-2, so the UTC fetch window starts at 23:00 UTC to ensure no
+    eligible morning forecasts are missed.
+
+    Because the WINDFOR endpoint rejects publication-date ranges exceeding 7 days,
+    longer intervals are split into sequential chunks of at most WINDFOR_CHUNK_DAYS
+    days each. Any HTTP error raises immediately so callers never receive partial data.
 
     Verified against the live API: datasets/WINDFOR accepts
     publishDateTimeFrom and publishDateTimeTo as ISO-8601 UTC strings and
@@ -129,8 +133,11 @@ def fetch_forecast_publications(start_date: date, end_date: date):
     url = f"{BASE_URL}/datasets/WINDFOR"
     # Fetch publications from the day before the first delivery date (forecasts
     # published on D-1 cover the D start times) through midnight at the end of
-    # the final delivery date.
-    from_dt = datetime.combine(start_date - timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
+    # the final delivery date. Compute local midnight in Europe/London on D-1
+    # and convert to UTC so that during BST (UTC+1) the fetch window starts at
+    # 23:00 UTC on the preceding UTC date without omitting early-morning publications.
+    from_local = datetime.combine(start_date - timedelta(days=1), time(0, 0), tzinfo=UK)
+    from_dt = from_local.astimezone(timezone.utc)
     to_dt = datetime.combine(end_date + timedelta(days=1), time(0, 0), tzinfo=timezone.utc)
 
     snapshots = []

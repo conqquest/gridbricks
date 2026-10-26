@@ -164,6 +164,32 @@ class TestFetchForecastPublications:
         assert params["publishDateTimeTo"] == "2026-01-02T00:00:00Z"
         assert params["format"] == "json"
 
+    def test_bst_summer_fetch_window_starts_at_2300_utc_previous_day(self):
+        """In BST, midnight local on D-1 is 23:00 UTC on D-2, so fetch window starts at 23:00 UTC."""
+        summer_day = date(2026, 7, 15)
+        resp = _mock_response([])
+        with patch("app.services.elexon.requests.get", return_value=resp) as mock_get:
+            fetch_forecast_publications(summer_day, summer_day)
+        mock_get.assert_called_once()
+        params = mock_get.call_args[1]["params"]
+        # Delivery is 2026-07-15. D-1 is 2026-07-14.
+        # 00:00:00 Europe/London on 2026-07-14 is 2026-07-13T23:00:00Z.
+        assert params["publishDateTimeFrom"] == "2026-07-13T23:00:00Z"
+        assert params["publishDateTimeTo"] == "2026-07-16T00:00:00Z"
+
+    def test_gmt_winter_fetch_window_starts_at_0000_utc(self):
+        """In GMT, midnight local on D-1 is 00:00 UTC on D-1."""
+        winter_day = date(2026, 1, 1)
+        resp = _mock_response([])
+        with patch("app.services.elexon.requests.get", return_value=resp) as mock_get:
+            fetch_forecast_publications(winter_day, winter_day)
+        mock_get.assert_called_once()
+        params = mock_get.call_args[1]["params"]
+        # Delivery is 2026-01-01. D-1 is 2025-12-31.
+        # 00:00:00 Europe/London on 2025-12-31 is 2025-12-31T00:00:00Z.
+        assert params["publishDateTimeFrom"] == "2025-12-31T00:00:00Z"
+        assert params["publishDateTimeTo"] == "2026-01-02T00:00:00Z"
+
     def test_records_from_all_chunks_are_combined(self):
         resp1 = _mock_response([
             _forecast_row("2026-01-01T00:00:00Z", "2025-12-31T06:00:00Z", 5000.0),
