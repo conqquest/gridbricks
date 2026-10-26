@@ -34,6 +34,12 @@ def analysis(
         with open(artifact_path) as f:
             data = json.load(f)
         data["dataSource"] = "Saved Artifact (July 2026)"
+        data["isSynthetic"] = False
+        data["isCachedArtifact"] = True
+        data["apiDetails"] = {
+            "origin": "Live Elexon BMRS API run cached to backend/july-2026-analysis.json",
+            "isLive": False,
+        }
         return data
 
     if source == "january-2026":
@@ -43,6 +49,12 @@ def analysis(
         with open(artifact_path) as f:
             data = json.load(f)
         data["dataSource"] = "Saved Artifact (January 2026)"
+        data["isSynthetic"] = False
+        data["isCachedArtifact"] = True
+        data["apiDetails"] = {
+            "origin": "Live Elexon BMRS API run cached to backend/january-analysis.json",
+            "isLive": False,
+        }
         return data
 
     if end_date < start_date:
@@ -50,6 +62,14 @@ def analysis(
     try:
         data = get_analysis(start_date, end_date, cutoff_hour)
         data["dataSource"] = "Live Elexon BMRS API"
+        data["isSynthetic"] = False
+        data["apiDetails"] = {
+            "baseUrl": "https://data.elexon.co.uk/bmrs/api/v1",
+            "actualsEndpoint": "/datasets/FUELHH (filtered to fuelType=WIND)",
+            "forecastEndpoint": "/datasets/WINDFOR",
+            "chunkLimit": "7 calendar days per request (Elexon BMRS limit)",
+            "isLive": True,
+        }
         return data
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not retrieve Elexon data: {exc}") from exc

@@ -710,6 +710,141 @@ button, input, select {
   display: block;
 }
 
+/* Provenance & API Authenticity Banner */
+.provenance-banner-card {
+  background-color: #ffffff;
+  border: 1px solid var(--cream-border);
+  border-radius: var(--card-radius);
+  padding: 18px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--card-shadow);
+  border-left: 4px solid var(--cerulean-tree);
+}
+
+.provenance-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cream-subtle);
+}
+
+.provenance-status-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-primary);
+}
+
+.status-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator-dot.dot-live {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-green 2s infinite;
+}
+
+.status-indicator-dot.dot-cached {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.provenance-badge-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--pill-radius);
+}
+
+.provenance-badge-pill.pill-live {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.provenance-badge-pill.pill-cached {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.prov-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prov-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.prov-code {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--cerulean-tree);
+  word-break: break-all;
+}
+
+.prov-val {
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+
+.prov-val code {
+  font-family: monospace;
+  background-color: var(--cream-subtle);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.prov-val.highlight-green {
+  color: #059669;
+  font-weight: 700;
+}
+
+.prov-val.highlight-amber {
+  color: #d97706;
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .provenance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .provenance-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Audit Strip */
 .audit-strip-card {
   display: grid;
