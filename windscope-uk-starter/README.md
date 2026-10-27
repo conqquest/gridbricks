@@ -16,7 +16,7 @@
 
 | Item | Link |
 | :--- | :--- |
-| 🌐 **Live App (Frontend)** | `<ADD VERCEL FRONTEND URL>` |
+| 🌐 **Live App (Frontend)** | `` |
 | ⚙️ **Live Backend API** | https://windscope-backend-pl3o.onrender.com |
 | ❤️ **Health Check** | https://windscope-backend-pl3o.onrender.com/api/health |
 | 🎬 **Video Demo (unlisted YouTube)** | `<ADD YOUTUBE URL>` |
