@@ -10,17 +10,6 @@
 ![Tests](https://img.shields.io/badge/Tests-72%20passing-brightgreen)
 ![Data](https://img.shields.io/badge/Data-Live%20Elexon%20BMRS-orange)
 
----
-
-## 🔗 Submission Links
-
-| Item | Link |
-| :--- | :--- |
-| 🌐 **Live App (Frontend)** | https://gridbricks-alpha.vercel.app/ |
-| ⚙️ **Live Backend API** | https://windscope-backend-pl3o.onrender.com |
-| ❤️ **Health Check** | https://windscope-backend-pl3o.onrender.com/api/health |
-| 🎬 **Video Demo (unlisted YouTube)** | `<ADD YOUTUBE URL>` |
-| 📦 **Repository** | https://github.com/conqquest/gridbricks |
 
 ---
 
