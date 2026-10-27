@@ -12,7 +12,7 @@ import {
 import WindScopeHeader from './components/WindScopeHeader';
 import LandscapeFooter from './components/LandscapeFooter';
 
-const API = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
+const API = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://windscope-backend-pl3o.onrender.com' : 'http://localhost:8000');
 const fmt = (n, digits = 0) => (n == null ? '—' : Number(n).toLocaleString('en-GB', { maximumFractionDigits: digits, minimumFractionDigits: digits }));
 
 function MetricCard({ label, value, unit, note, icon: Icon, tag, tagType }) {

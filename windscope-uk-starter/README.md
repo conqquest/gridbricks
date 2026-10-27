@@ -153,8 +153,10 @@ Expected output:
 
 ### Deployment URLs
 
-- **Live Frontend / Fullstack App:** `[PENDING USER DEPLOYMENT - Add URL here, e.g. https://windscope-uk.vercel.app]`
-- **Public GitHub Repository:** `[PENDING USER PUSH - Add public repository URL here, e.g. https://github.com/conqquest/gridbricks]`
+- **Live Backend API (Render):** [https://windscope-backend-pl3o.onrender.com](https://windscope-backend-pl3o.onrender.com)
+- **Live Backend Health Check:** [https://windscope-backend-pl3o.onrender.com/api/health](https://windscope-backend-pl3o.onrender.com/api/health)
+- **Live Frontend / Fullstack App (Vercel):** `[PENDING VERCEL DEPLOYMENT - e.g. https://windscope-uk.vercel.app]`
+- **Public GitHub Repository:** [https://github.com/conqquest/gridbricks](https://github.com/conqquest/gridbricks)
 
 ---
 
